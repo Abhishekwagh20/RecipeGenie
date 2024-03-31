@@ -13,13 +13,25 @@
         }
 
         .container {
-            max-width: 800px;
+            display: flex;
+            justify-content: space-between;
+            max-width: 1000px;
             margin: 0 auto;
             padding: 20px;
             background-color: #fff;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             border-radius: 10px;
             margin-top: 50px;
+        }
+
+        .search-container {
+            flex: 0 0 70%;
+            padding-right: 20px;
+        }
+
+        .previous-searches {
+            flex: 0 0 30%;
+            padding-left: 20px;
         }
 
         h1 {
@@ -29,7 +41,7 @@
         }
 
         input[type="text"] {
-            width: 70%;
+            width: calc(100% - 70px);
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 5px;
@@ -38,7 +50,8 @@
         }
 
         button {
-            padding: 10px 20px;
+            width: 70px;
+            padding: 10px;
             background-color: #4CAF50;
             color: white;
             border: none;
@@ -72,59 +85,121 @@
             margin-bottom: 5px;
             color: #666;
         }
+
+        .expandable-window {
+            overflow-y: auto;
+            max-height: 300px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+        }
+
+        .previous-search-item {
+            cursor: pointer;
+        }
+
+        .previous-search-item:hover {
+            background-color: #e6e6e6;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Recipe Finder</h1>
-        <input type="text" id="dishInput" placeholder="Enter dish name">
-        <button onclick="searchRecipe()">Search</button>
-        <div id="recipeResult"></div>
+        <div class="search-container">
+            <h1>Recipe Finder</h1>
+            <input type="text" id="dishInput" placeholder="Enter dish name">
+            <button onclick="searchRecipe()">Search</button>
+            <div id="recipeResult"></div>
+        </div>
+        <div class="previous-searches">
+            <h2>Previous Searches</h2>
+            <div class="expandable-window">
+                <ul id="previousSearchList">
+                    <!-- Previous searches will be displayed here dynamically -->
+                </ul>
+                <button onclick="deletePreviousRecipes()" style="background-color: #f44336; color: white; border: none; border-radius: 10px; padding-inline: 40px; padding-block: 15px; cursor: pointer; font-size: 26px; display: inline-block; line-height: 1;">Delete</button>
+            </div>
+        </div>
     </div>
 
     <script>
-        function searchRecipe() {
-            var dish = document.getElementById('dishInput').value;
+        // Function to fetch previous search recipes
+        function displayPreviousSearches() {
+            fetch('/previous_searches')
+                .then(response => response.json())
+                .then(previousSearches => {
+                    const previousSearchList = document.getElementById('previousSearchList');
+                    previousSearchList.innerHTML = ''; // Clear previous search list
+                    previousSearches.forEach(search => {
+                        const listItem = document.createElement('li');
+                        listItem.textContent = search.search_term;
+                        listItem.classList.add('previous-search-item');
+                        listItem.addEventListener('click', () => {
+                            displayRecipe(search.recipe);
+                        });
+                        previousSearchList.appendChild(listItem);
+                    });
+                });
+        }
 
+        // Function to display the recipe
+        function displayRecipe(recipe) {
+            const recipeResultDiv = document.getElementById('recipeResult');
+            recipeResultDiv.innerHTML = `
+                <h2>${recipe.title}</h2>
+                <p>${recipe.instructions}</p>
+                <h3>Ingredients:</h3>
+                <ul>
+                    ${recipe.ingredients.map(ingredient => `<li>${ingredient}</li>`).join('')}
+                </ul>
+            `;
+        }
+
+        // Function to handle recipe search
+        function searchRecipe() {
+            const dish = document.getElementById('dishInput').value;
             fetch('/get_recipe', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
                 },
-                body: 'dish=' + encodeURIComponent(dish)
+                body: `dish=${encodeURIComponent(dish)}`
             })
             .then(response => response.json())
             .then(data => {
-                console.log(data); // Log received data to console for debugging
-                displayRecipe(data);
+                if (data.error) {
+                    document.getElementById('recipeResult').textContent = data.error;
+                } else {
+                    displayRecipe(data);
+                }
+                displayPreviousSearches(); // Update the list of previous searches
             })
             .catch(error => {
                 console.error('Error:', error);
-                displayErrorMessage('An error occurred while fetching the recipe.');
+                document.getElementById('recipeResult').textContent = 'An error occurred while fetching the recipe.';
             });
         }
 
-        function displayRecipe(data) {
-            var recipeResultDiv = document.getElementById('recipeResult');
-            if (!data || !data.ingredients) {
-                displayErrorMessage('Recipe not found.');
-                return;
-            }
-
-            var recipeHTML = `
-                <h2>${data.title}</h2>
-                <p>${data.instructions}</p>
-                <h3>Ingredients:</h3>
-                <ul>
-                    ${data.ingredients.map(ingredient => `<li>${ingredient}</li>`).join('')}
-                </ul>
-            `;
-            recipeResultDiv.innerHTML = recipeHTML;
+        function deletePreviousRecipes() {
+            fetch('/delete_previous_recipes', {
+                method: 'DELETE'
+            })
+            .then(response => {
+                if (response.ok) {
+                    console.log('Previous recipes deleted successfully');
+                    // Refresh the list of previous searches
+                    displayPreviousSearches();
+                } else {
+                    console.error('Failed to delete previous recipes');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
         }
 
-        function displayErrorMessage(message) {
-            document.getElementById('recipeResult').innerHTML = `<p>${message}</p>`;
-        }
+        // Initial call to display previous searches
+        displayPreviousSearches();
     </script>
 </body>
 </html>
