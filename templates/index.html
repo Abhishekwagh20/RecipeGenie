@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Finder</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            margin-top: 50px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        input[type="text"] {
+            width: 70%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #recipeResult {
+            margin-top: 20px;
+        }
+
+        #recipeResult h2 {
+            color: #333;
+        }
+
+        #recipeResult p {
+            color: #666;
+        }
+
+        #recipeResult ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        #recipeResult ul li {
+            margin-bottom: 5px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Recipe Finder</h1>
+        <input type="text" id="dishInput" placeholder="Enter dish name">
+        <button onclick="searchRecipe()">Search</button>
+        <div id="recipeResult"></div>
+    </div>
+
+    <script>
+        function searchRecipe() {
+            var dish = document.getElementById('dishInput').value;
+
+            fetch('/get_recipe', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: 'dish=' + encodeURIComponent(dish)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data); // Log received data to console for debugging
+                displayRecipe(data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                displayErrorMessage('An error occurred while fetching the recipe.');
+            });
+        }
+
+        function displayRecipe(data) {
+            var recipeResultDiv = document.getElementById('recipeResult');
+            if (!data || !data.ingredients) {
+                displayErrorMessage('Recipe not found.');
+                return;
+            }
+
+            var recipeHTML = `
+                <h2>${data.title}</h2>
+                <p>${data.instructions}</p>
+                <h3>Ingredients:</h3>
+                <ul>
+                    ${data.ingredients.map(ingredient => `<li>${ingredient}</li>`).join('')}
+                </ul>
+            `;
+            recipeResultDiv.innerHTML = recipeHTML;
+        }
+
+        function displayErrorMessage(message) {
+            document.getElementById('recipeResult').innerHTML = `<p>${message}</p>`;
+        }
+    </script>
+</body>
+</html>
